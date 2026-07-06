@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portugal Roadtrip: Arrábida bis Algarve</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    colors: {
+                        ocean: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                        },
+                        sand: {
+                            100: '#fef3c7',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #f8fafc; }
+        
+        /* Map Container */
+        #map { height: 60vh; min-height: 400px; border-radius: 1rem; z-index: 10; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Transitions */
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        
+        /* Checkbox styling */
+        .check-item.completed span {
+            text-decoration: line-through;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased font-sans flex flex-col min-h-screen">
+
+    <!-- Hero Section -->
+    <header class="relative bg-ocean-900 text-white overflow-hidden shadow-xl">
+        <div class="absolute inset-0 opacity-40 mix-blend-overlay">
+            <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Praia_da_Arrifana_(6154747357).jpg?width=1920" alt="Portugal Coast" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/1920x400/0c4a6e/ffffff?text=Portugal+Coast'">
+        </div>
+        <div class="relative max-w-5xl mx-auto px-6 py-16 md:py-24 z-10">
+            <div class="inline-block px-3 py-1 mb-4 rounded-full bg-ocean-500/30 backdrop-blur-md border border-ocean-500/50 text-sm font-semibold tracking-wider uppercase">
+                21 Tage Erlebnis
+            </div>
+            <h1 class="text-4xl md:text-6xl font-serif font-bold mb-4 leading-tight">
+                Portugal Roadtrip
+            </h1>
+            <p class="text-lg md:text-xl text-ocean-100 max-w-2xl font-light">
+                Vom goldenen Hinterland des Alentejo über die wilde Westküste bis zur friedlichen Lagune der Ost-Algarve.
+            </p>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="sticky top-0 z-40 bg-white/80 backdrop-blur-lg shadow-sm border-b border-slate-200">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6">
+            <nav class="flex space-x-1 sm:space-x-4 overflow-x-auto py-3 no-scrollbar" aria-label="Tabs">
+                <button onclick="switchTab('itinerary')" id="tab-itinerary" class="tab-btn active bg-ocean-50 text-ocean-600 px-4 py-2 rounded-lg font-medium text-sm flex items-center shrink-0 transition-colors">
+                    <i class="ph ph-map-trifold text-lg mr-2"></i> Reiseplan
+                </button>
+                <button onclick="switchTab('map-view')" id="tab-map-view" class="tab-btn text-slate-500 hover:text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-medium text-sm flex items-center shrink-0 transition-colors">
+                    <i class="ph ph-compass text-lg mr-2"></i> Interaktive Karte
+                </button>
+                <button onclick="switchTab('logistics')" id="tab-logistics" class="tab-btn text-slate-500 hover:text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-medium text-sm flex items-center shrink-0 transition-colors">
+                    <i class="ph ph-info text-lg mr-2"></i> Logistik & Tipps
+                </button>
+                <button onclick="switchTab('checklist')" id="tab-checklist" class="tab-btn text-slate-500 hover:text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-medium text-sm flex items-center shrink-0 transition-colors">
+                    <i class="ph ph-check-square-offset text-lg mr-2"></i> Checkliste
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-5xl mx-auto px-4 sm:px-6 py-8 w-full">
+
+        <!-- TAB: REISEPLAN -->
+        <div id="itinerary" class="tab-content active">
+            <div class="space-y-12">
+                
+                <!-- Woche 1 -->
+                <section>
+                    <div class="flex items-center mb-6">
+                        <div class="bg-sand-500 text-white rounded-xl p-3 shadow-md mr-4">
+                            <i class="ph ph-sun text-2xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-serif font-bold text-slate-800">Woche 1</h2>
+                            <p class="text-slate-500">Alentejo-Hinterland & Arrábida</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                            <button class="w-full text-left px-6 py-4 flex justify-between items-center focus:outline-none" onclick="toggleAccordion(this)">
+                                <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                    <span class="bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1 rounded-full w-max">Tage 1–7</span>
+                                    <h3 class="font-semibold text-lg">Basis: Umland von Évora / Monsaraz</h3>
+                                </div>
+                                <i class="ph ph-caret-down transition-transform duration-300 transform"></i>
+                            </button>
+                            <div class="accordion-content bg-slate-50 border-t border-slate-100">
+                                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    
+                                    <div class="md:col-span-2 rounded-xl overflow-hidden h-48 sm:h-64 relative shadow-inner">
+                                        <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Monsaraz_-_Alentejo_(383570382).jpg?width=1200" alt="Monsaraz Alentejo" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/1200x600/fef3c7/d97706?text=Alentejo+Hinterland'">
+                                        <div class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-lg">Monsaraz und Alqueva-Stausee</div>
+                                    </div>
+                                    
+                                    <div class="md:col-span-2">
+                                        <h4 class="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-2 flex items-center"><i class="ph ph-bed mr-2 text-sand-500"></i> Übernachtung</h4>
+                                        <p class="text-slate-700 text-sm leading-relaxed mb-4">
+                                            Als ruhiger Stützpunkt für die erste Woche eignet sich hervorragend ein ländliches Landgut (Quinta) im Herzen des Alentejo. Das Umland von Évora und Monsaraz bietet absolute Stille.
+                                            <br><br>
+                                            <strong>Tipps:</strong> Das luxuriöse <a href="https://barrocal.pt/" target="_blank" class="text-sand-600 hover:text-sand-700 hover:underline font-semibold transition-colors">São Lourenço do Barrocal</a> nahe Monsaraz oder das <a href="https://evora.octanthotels.com/" target="_blank" class="text-sand-600 hover:text-sand-700 hover:underline font-semibold transition-colors">Octant Évora</a> mitten in der Natur.
+                                        </p>
+                                    </div>
+
+                                    <div class="col-span-full mt-2">
+                                        <h4 class="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-4 flex items-center"><i class="ph ph-images mr-2 text-sand-500"></i> Highlights & Aktivitäten</h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                            
+                                            <!-- Monsaraz -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Monsaraz,_Portugal_-_Apr_2011.jpg?width=800" alt="Monsaraz" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Mittelalterliches Monsaraz</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Erkunden Sie das weiße Festungsdorf auf dem Hügel und genießen Sie den atemberaubenden Panoramablick über Europas größten Stausee, den Alqueva.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Monsaraz" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Monsaraz" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://www.visitalentejo.pt/de/katalog/ortschaften/monsaraz/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Alentejo</a>
+                                                        <a href="https://www.cm-reguengos-monsaraz.pt/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-bank mr-1.5"></i> Gemeinde Offiziell</a>
+                                                        <a href="https://www.tripadvisor.de/Attraction_Review-g1918349-d2073995-Reviews-Monsaraz_Castle-Monsaraz_Evora_District_Alentejo.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Almendres Cromlech -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Cromeleque_dos_Almendres_-_Portugal_(3445695074).jpg?width=800" alt="Almendres Cromlech" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Almendres Cromlech</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Besuchen Sie diesen mystischen, prähistorischen Steinkreis, der älter als Stonehenge ist und völlig ruhig inmitten alter Korkeichenwälder liegt.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Cromeleque+dos+Almendres" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Cromeleque_dos_Almendres" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://www.megalithic.co.uk/article.php?sid=6184" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-compass mr-1.5"></i> Megalithic Portal</a>
+                                                        <a href="https://www.visitevora.net/en/almendres-cromlech/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Évora</a>
+                                                        <a href="https://www.tripadvisor.de/Attraction_Review-g189106-d246618-Reviews-Almendres_Cromlech-Evora_Evora_District_Alentejo.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Évora -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/%C3%89vora_2015_10_16_1034_(23862044402).jpg?width=800" alt="Évora Tempel" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Évoras Historisches Herz</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Besichtigen Sie den beeindruckenden römischen Tempel der Diana, die massive gotische Kathedrale und die berühmte, makabre Knochenkapelle.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Evora+Portugal" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/%C3%89vora" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://whc.unesco.org/en/list/361" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-bank mr-1.5"></i> UNESCO World Heritage</a>
+                                                        <a href="https://www.visitportugal.com/de/node/73787" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Portugal</a>
+                                                        <a href="https://www.tripadvisor.de/Tourism-g189106-Evora_Evora_District_Alentejo-Vacations.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Corval -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/The_so-called_Temple_of_Diana,_Evora,_Portugal_(12651434535).jpg?width=800" alt="Töpferei Corval" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Töpferhandwerk in Corval</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Ein Abstecher in das nahegelegene Dorf São Pedro do Corval, das fast ausschließlich aus traditionellen, handwerklichen Keramikwerkstätten besteht.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Sao+Pedro+do+Corval" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/S%C3%A3o_Pedro_do_Corval" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://www.visitalentejo.pt/de/katalog/ortschaften/sao-pedro-do-corval/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Alentejo</a>
+                                                        <a href="https://www.portugal.com/city/sao-pedro-do-corval/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-info mr-1.5"></i> Portugal.com Info</a>
+                                                        <a href="https://www.tripadvisor.de/Tourism-g1069502-Sao_Pedro_Do_Corval_Evora_District_Alentejo-Vacations.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Weinverkostung -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Monsaraz_-_Alentejo_(383570382).jpg?width=800" alt="Wein Alentejo" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Weinverkostung</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Nutzen Sie die Nähe zu renommierten Weingütern der Region wie Herdade da Cartuxa oder Fitapreta für ein ausgiebiges, entspanntes Tasting.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Adega+Cartuxa+Evora" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps (Cartuxa)</a>
+                                                        <a href="https://cartuxa.pt/en/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-wine mr-1.5"></i> Cartuxa Website</a>
+                                                        <a href="https://www.fitapreta.com/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-wine mr-1.5"></i> Fitapreta Website</a>
+                                                        <a href="https://www.vinhosdoalentejo.pt/en/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Alentejo Wine Route</a>
+                                                        <a href="https://www.visitportugal.com/de/content/vinhos-do-alentejo" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-info mr-1.5"></i> Visit Portugal Info</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Arrábida -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/W20120331pt_cabo_sardao_DSC08981.jpg?width=800" alt="Küste Arrábida" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Naturpark Arrábida</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Tagesausflug an die Küste (ca. 1 Std.): Wandern Sie zur mystischen Höhlenkapelle Lapa de Santa Margarida und genießen Sie steile Klippen.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Parque+Natural+da+Arrabida" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Parque_Natural_da_Arr%C3%A1bida" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://icnf.pt/conservacao/parques/parquenaturalarrabida" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-tree mr-1.5"></i> ICNF Nationalparks</a>
+                                                        <a href="https://www.visitportugal.com/de/node/73766" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Portugal</a>
+                                                        <a href="https://www.tripadvisor.de/Attraction_Review-g189163-d1437149-Reviews-Parque_Natural_da_Arrabida-Setubal_Setubal_District_Alentejo.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Woche 2 -->
+                <section>
+                    <div class="flex items-center mb-6">
+                        <div class="bg-teal-500 text-white rounded-xl p-3 shadow-md mr-4">
+                            <i class="ph ph-waves text-2xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-serif font-bold text-slate-800">Woche 2</h2>
+                            <p class="text-slate-500">Die wilde Westküste (Costa Vicentina)</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                            <button class="w-full text-left px-6 py-4 flex justify-between items-center focus:outline-none" onclick="toggleAccordion(this)">
+                                <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                    <span class="bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1 rounded-full w-max">Tage 8–14</span>
+                                    <h3 class="font-semibold text-lg">Basis: Vila Nova de Milfontes oder Aljezur</h3>
+                                </div>
+                                <i class="ph ph-caret-down transition-transform duration-300 transform"></i>
+                            </button>
+                            <div class="accordion-content bg-slate-50 border-t border-slate-100">
+                                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    
+                                    <div class="md:col-span-2 rounded-xl overflow-hidden h-48 sm:h-64 relative shadow-inner">
+                                        <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Fisherman's_Trail,_Portugal_in_November_(51803249902).jpg?width=1200" alt="Costa Vicentina Klippen" class="w-full h-full object-cover">
+                                        <div class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-lg">Costa Vicentina Klippen</div>
+                                    </div>
+
+                                    <div class="md:col-span-2">
+                                        <h4 class="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-2 flex items-center"><i class="ph ph-bed mr-2 text-teal-500"></i> Übernachtung</h4>
+                                        <p class="text-slate-700 text-sm leading-relaxed mb-4">
+                                            Diese Region ist dünn besiedelt und bietet spektakuläre Landschaften. Ein ruhiges Landgut ist hier die beste Wahl, um nach ausgiebigen Wanderungen am Fischerpfad zu entspannen.
+                                            <br><br>
+                                            <strong>Tipp:</strong> Die ländliche <a href="https://www.herdadedamatinha.com/" target="_blank" class="text-teal-600 hover:text-teal-700 hover:underline font-semibold transition-colors">Herdade da Matinha</a> im Alentejo Litoral vereint Natur und Kunst.
+                                        </p>
+                                    </div>
+
+                                    <div class="col-span-full mt-2">
+                                        <h4 class="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-4 flex items-center"><i class="ph ph-images mr-2 text-teal-500"></i> Highlights & Aktivitäten</h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                            
+                                            <!-- Odeceixe -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Praia_da_Arrifana.JPG?width=800" alt="Odeceixe" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Praia de Odeceixe</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Entspannen Sie an diesem einzigartigen Strand, an dem der Süßwasser-Fluss Seixe in einer weiten Hufeisenkurve in den rauen Ozean mündet.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Praia+de+Odeceixe" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Odeceixe" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://rotavicentina.com/pt-pt/trilhos/praia-de-odeceixe/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-person-simple-walk mr-1.5"></i> Rota Vicentina</a>
+                                                        <a href="https://www.surf-forecast.com/breaks/Praia-de-Odeceixe" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-waves mr-1.5"></i> Surf Forecast</a>
+                                                        <a href="https://www.visitportugal.com/de/node/139366" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Portugal</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Fischerpfad -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Fisherman's_Trail,_Portugal_in_November_(51803249902).jpg?width=800" alt="Fischerpfad Rota Vicentina" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Fischerpfad Wandern</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Erwandern Sie Teilstrecken der berühmten Rota Vicentina. Die Trampelpfade führen direkt an ungesicherten, spektakulären Klippenkanten entlang.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Trilho+dos+Pescadores" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://rotavicentina.com/trilho-dos-pescadores/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Offizielle Website</a>
+                                                        <a href="https://www.alltrails.com/de/trail/portugal/beja/trilho-dos-pescadores" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-map-trifold mr-1.5"></i> AllTrails Route</a>
+                                                        <a href="https://www.komoot.de/guide/1234/wandern-auf-der-rota-vicentina" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-compass mr-1.5"></i> Komoot Guide</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Rota_Vicentina" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Aljezur Burg -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Cistern,_Silves_Castle,_19_November_2011.JPG?width=800" alt="Aljezur Burg" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Aljezur & Burg</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Besuchen Sie die Überreste der maurischen Burgruine aus dem 10. Jahrhundert und spazieren Sie durch die steilen Gassen der weißen Altstadt.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Castelo+de+Aljezur" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Aljezur" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://www.cm-aljezur.pt/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-bank mr-1.5"></i> Gemeinde Offiziell</a>
+                                                        <a href="https://www.visitalgarve.pt/de/3522/aljezur.aspx" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Algarve</a>
+                                                        <a href="https://www.tripadvisor.de/Tourism-g1032890-Aljezur_Faro_District_Algarve-Vacations.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Samoqueira -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/1030330_Beleza_invernal.jpg?width=800" alt="Samoqueira" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Tide Pools Samoqueira</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Erkunden Sie bei Ebbe die faszinierenden, bizarren Felsformationen und natürlichen Gezeitentümpel voller Leben am Praia da Samoqueira.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Praia+da+Samoqueira" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Porto_Covo" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://www.visitalentejo.pt/de/katalog/strande/praia-da-samoqueira/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Alentejo</a>
+                                                        <a href="https://beachcam.meo.pt/livecams/praia-da-samoqueira/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-camera mr-1.5"></i> Live Beachcam</a>
+                                                        <a href="https://www.tripadvisor.de/Attraction_Review-g661005-d10214811-Reviews-Praia_da_Samoqueira-Porto_Covo_Beja_District_Alentejo.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Cabo Sardão -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Farol_do_Cabo_Sard%C3%A3o.JPG?width=800" alt="Cabo Sardão" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Cabo Sardão Störche</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Ein weltweites Unikat: Beobachten Sie direkt am Leuchtturm Cabo Sardão Weißstörche, die ihre Nester todesmutig an die steilen Meeresklippen bauen.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Farol+do+Cabo+Sardao" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://pt.wikipedia.org/wiki/Cabo_Sard%C3%A3o" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://www.avesdeportugal.info/sitcabosardao/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-bird mr-1.5"></i> Vögel & Natur</a>
+                                                        <a href="https://rotavicentina.com/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Rota Vicentina</a>
+                                                        <a href="https://www.tripadvisor.de/Attraction_Review-g1913386-d4469695-Reviews-Cabo_Sardao-Odemira_Beja_District_Alentejo.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Carrapateira -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Praia_da_Arrifana_(6154747357).jpg?width=800" alt="Carrapateira" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Klippen Carrapateira</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Absolvieren Sie die 10,5 km Rundwanderung über den Pontal da Carrapateira mit epischen Ausblicken auf die Surf-Strände Bordeira und Amado.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Pontal+da+Carrapateira" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Carrapateira" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://www.visitalgarve.pt/de/3345/praia-da-bordeira-carrapateira.aspx" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Algarve</a>
+                                                        <a href="https://www.alltrails.com/de/trail/portugal/faro/pontal-da-carrapateira" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-map-trifold mr-1.5"></i> AllTrails Route</a>
+                                                        <a href="https://www.tripadvisor.de/Attraction_Review-g1192868-d3600989-Reviews-Pontal_da_Carrapateira-Carrapateira_Faro_District_Algarve.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Woche 3 -->
+                <section>
+                    <div class="flex items-center mb-6">
+                        <div class="bg-rose-500 text-white rounded-xl p-3 shadow-md mr-4">
+                            <i class="ph ph-compass-rose text-2xl"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-serif font-bold text-slate-800">Woche 3</h2>
+                            <p class="text-slate-500">Die authentische Ost-Algarve</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                            <button class="w-full text-left px-6 py-4 flex justify-between items-center focus:outline-none" onclick="toggleAccordion(this)">
+                                <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                    <span class="bg-slate-100 text-slate-700 text-xs font-bold px-3 py-1 rounded-full w-max">Tage 15–21</span>
+                                    <h3 class="font-semibold text-lg">Basis: Tavira & Umgebung</h3>
+                                </div>
+                                <i class="ph ph-caret-down transition-transform duration-300 transform"></i>
+                            </button>
+                            <div class="accordion-content bg-slate-50 border-t border-slate-100">
+                                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    
+                                    <div class="md:col-span-2 rounded-xl overflow-hidden h-48 sm:h-64 relative shadow-inner">
+                                        <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Isla_de_Tavira_(Portugal)_(22250750455).jpg?width=1200" alt="Tavira Ost-Algarve" class="w-full h-full object-cover">
+                                        <div class="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-lg">Tavira & Lagunen</div>
+                                    </div>
+
+                                    <div class="md:col-span-2">
+                                        <h4 class="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-2 flex items-center"><i class="ph ph-bed mr-2 text-rose-500"></i> Übernachtung</h4>
+                                        <p class="text-slate-700 text-sm leading-relaxed mb-4">
+                                            Während die restliche Algarve touristisch stark erschlossen ist, besticht der Osten durch Sandbank-Inseln und ruhiges Tempo.
+                                            <br><br>
+                                            <strong>Tipp:</strong> Eine friedliche Pension nahe Tavira, wie die von Zitrushainen umgebene <a href="https://quintadosperfumes.com/" target="_blank" class="text-rose-600 hover:text-rose-700 hover:underline font-semibold transition-colors">Quinta dos Perfumes</a>.
+                                        </p>
+                                    </div>
+
+                                    <div class="col-span-full mt-2">
+                                        <h4 class="text-sm uppercase tracking-wider text-slate-500 font-semibold mb-4 flex items-center"><i class="ph ph-images mr-2 text-rose-500"></i> Highlights & Aktivitäten</h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                            
+                                            <!-- Ilha de Tavira -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Ilha_de_Tavira_3.JPG?width=800" alt="Ilha de Tavira" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Ilha de Tavira</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Lassen Sie das Auto stehen und nehmen Sie die kleine Fähre durch die Wasserstraßen zu den unendlich wirkenden, feinen Sandstränden der Düneninsel.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Ilha+de+Tavira" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Ilha_de_Tavira" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://www.visitalgarve.pt/de/2275/ilha-de-tavira.aspx" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Algarve</a>
+                                                        <a href="https://www.silnido.com/tavira-island-ferry" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-boat mr-1.5"></i> Fährzeiten</a>
+                                                        <a href="https://www.tripadvisor.de/Attraction_Review-g189122-d1767677-Reviews-Ilha_de_Tavira-Tavira_Faro_District_Algarve.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Ria Formosa -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Ria_formosa.jpg?width=800" alt="Ria Formosa Flamingos" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Naturpark Ria Formosa</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Beobachten Sie wilde Flamingos und Myriaden von Zugvögeln in den streng geschützten Lagunen und Labyrinthen aus Wasserwegen und Salzpfannen.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Parque+Natural+da+Ria+Formosa" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Parque_Natural_da_Ria_Formosa" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://icnf.pt/conservacao/parques/parquenaturalriaformosa" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-tree mr-1.5"></i> ICNF Nationalparks</a>
+                                                        <a href="https://www.visitalgarve.pt/de/3028/parque-natural-da-ria-formosa.aspx" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Algarve</a>
+                                                        <a href="https://www.tripadvisor.de/Attraction_Review-g189111-d1061909-Reviews-Parque_Natural_da_Ria_Formosa-Faro_Faro_District_Algarve.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Cacela Velha -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Portugal,casas_de_Cacela_Velha,_2019.jpg?width=800" alt="Cacela Velha" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Dorf-Idyll Cacela Velha</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Besuchen Sie dieses winzige, unberührte Dorf. Von der alten Festung und Kirche aus bietet sich ein surreal schöner Ausblick über die gesamte Lagune.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Cacela+Velha" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Cacela_Velha" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://www.visitalgarve.pt/de/4579/cacela-velha.aspx" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Algarve</a>
+                                                        <a href="http://www.monumentos.gov.pt/Site/APP_PagesUser/SIPA.aspx?id=1285" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-bank mr-1.5"></i> Nationale Monumente</a>
+                                                        <a href="https://www.tripadvisor.de/Attraction_Review-g12818671-d6484964-Reviews-Cacela_Velha_s_Beach-Cacela_Velha_Vila_Real_de_Santo_Antonio_Faro_District_Alga.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Tavira Stadt -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Igreja_Matriz_de_Cacela_Velha,_Portugal_02.jpg?width=800" alt="Tavira Stadt" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Tavira Stadtspaziergang</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Schlendern Sie über die römische Brücke, erkunden Sie die Gärten in der alten Burgruine und zählen Sie die über 30 Kirchen der Stadt.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Tavira+Portugal" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Tavira" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://cm-tavira.pt/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-bank mr-1.5"></i> Gemeinde Offiziell</a>
+                                                        <a href="https://www.visitalgarve.pt/de/3527/tavira.aspx" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Algarve</a>
+                                                        <a href="https://www.tripadvisor.de/Tourism-g189122-Tavira_Faro_District_Algarve-Vacations.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Olhão Markt -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Ria_Formosa_(7321298354).jpg?width=800" alt="Olhão Markt" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Markthallen von Olhão</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Besuchen Sie die markanten, roten Backsteinhallen am Wasser. Tauchen Sie ein in das bunte Treiben, fangfrischen Fisch und lokale Spezialitäten.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Mercados+de+Olhao" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Olh%C3%A3o" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://mercadosdeolhao.pt/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-storefront mr-1.5"></i> Offizielle Website</a>
+                                                        <a href="https://www.visitalgarve.pt/de/3525/olhao.aspx" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Algarve</a>
+                                                        <a href="https://www.tripadvisor.de/Attraction_Review-g189119-d7100412-Reviews-Mercados_de_Olhao-Olhao_Faro_District_Algarve.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Silves -->
+                                            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col">
+                                                <div class="h-32 overflow-hidden relative bg-slate-200">
+                                                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Silves_Castle_XIII_century_artefacts.jpg?width=800" alt="Silves" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                                    <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                                                    <h5 class="absolute bottom-2 left-3 font-bold text-white text-md">Abstecher nach Silves</h5>
+                                                </div>
+                                                <div class="p-4 flex flex-col flex-grow">
+                                                    <p class="text-xs text-slate-600 mb-3 flex-grow">Ein Tagesausflug ins Landesinnere zur alten maurischen Hauptstadt der Algarve. Die massive Festung aus rotem Sandstein thront über der Stadt.</p>
+                                                    <div class="border-t border-slate-100 pt-3 mt-auto flex flex-col gap-1.5">
+                                                        <a href="https://www.google.com/maps/search/?api=1&query=Castelo+de+Silves" target="_blank" class="flex items-center text-xs font-semibold text-ocean-600 hover:text-ocean-800 transition-colors"><i class="ph ph-map-pin-line mr-1.5 text-sm"></i> Google Maps</a>
+                                                        <a href="https://de.wikipedia.org/wiki/Silves_(Portugal)" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-article mr-1.5"></i> Wikipedia</a>
+                                                        <a href="https://castelosdeportugal.pt/castelo-de-silves/" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-bank mr-1.5"></i> Castelos de Portugal</a>
+                                                        <a href="https://www.visitalgarve.pt/de/3526/silves.aspx" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-globe mr-1.5"></i> Visit Algarve</a>
+                                                        <a href="https://www.tripadvisor.de/Attraction_Review-g189121-d1469736-Reviews-Castelo_de_Silves-Silves_Faro_District_Algarve.html" target="_blank" class="flex items-center text-[11px] text-slate-500 hover:text-slate-700 transition-colors"><i class="ph ph-star mr-1.5"></i> TripAdvisor</a>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </div>
+
+        <!-- TAB: KARTE -->
+        <div id="map-view" class="tab-content">
+            <div class="mb-6">
+                <h2 class="text-2xl font-serif font-bold text-slate-800">Interaktive Route</h2>
+                <p class="text-slate-500 mt-1">Überblick der Basislager und wichtigsten Stopps.</p>
+            </div>
+            <div class="bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
+                <div id="map" class="w-full"></div>
+            </div>
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-center">
+                <div class="bg-sand-50 text-sand-700 p-3 rounded-lg font-medium shadow-sm">1. Monsaraz / Évora</div>
+                <div class="bg-teal-50 text-teal-700 p-3 rounded-lg font-medium shadow-sm">2. Milfontes / Aljezur</div>
+                <div class="bg-rose-50 text-rose-700 p-3 rounded-lg font-medium shadow-sm">3. Tavira</div>
+            </div>
+        </div>
+
+        <!-- TAB: LOGISTIK & TIPPS -->
+        <div id="logistics" class="tab-content">
+            <div class="mb-6">
+                <h2 class="text-2xl font-serif font-bold text-slate-800">Wichtige Hinweise für den Roadtrip</h2>
+                <p class="text-slate-500 mt-1">Was du beim Fahren in Portugal beachten musst.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Maut -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                    <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4 text-2xl">
+                        <i class="ph ph-receipt"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">Maut (Via Verde)</h3>
+                    <p class="text-slate-600 text-sm">Portugal nutzt ein elektronisches Mautsystem. Stelle sicher, dass dein Mietwagen mit einem entsprechenden <strong>Transponder</strong> ausgestattet ist, damit die Gebühren automatisch abgebucht werden.</p>
+                </div>
+
+                <!-- Parken -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+                    <div class="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-4 text-2xl">
+                        <i class="ph ph-parking"></i>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2">Parken in Städten</h3>
+                    <p class="text-slate-600 text-sm">In <strong>Lagos</strong> meide das Zentrum und nutze die Parkplätze an der Marina. In <strong>Évora</strong> parke dein Auto <em>immer</em> außerhalb der alten Ringmauer (z.B. Portas da Lagoa).</p>
+                </div>
+
+                <!-- Wildcampen -->
+                <div class="bg-red-50 p-6 rounded-2xl shadow-sm border border-red-200 hover:shadow-md transition-shadow">
+                    <div class="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4 text-2xl">
+                        <i class="ph ph-prohibit"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-red-800 mb-2">Wildcampen</h3>
+                    <p class="text-red-700 text-sm">Ist in ganz Portugal <strong>streng untersagt</strong> und wird mit hohen Bußgeldern belegt. Nutze für Übernachtungen im Auto ausschließlich offizielle Stellplätze oder Campingplätze (z.B. Orbitur Évora oder Camping Olhão).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: CHECKLISTE -->
+        <div id="checklist" class="tab-content">
+            <div class="mb-6 flex justify-between items-end">
+                <div>
+                    <h2 class="text-2xl font-serif font-bold text-slate-800">Orga & Unterkünfte</h2>
+                    <p class="text-slate-500 mt-1">Behalte den Überblick über deine Buchungen.</p>
+                </div>
+                <button onclick="resetChecklist()" class="text-sm text-ocean-600 hover:text-ocean-800 font-medium underline">Zurücksetzen</button>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h3 class="font-bold text-lg mb-4 text-slate-700 border-b pb-2">Vorbereitung</h3>
+                <div class="space-y-3 mb-8" id="prep-list">
+                    <label class="flex items-start cursor-pointer check-item group">
+                        <input type="checkbox" class="mt-1 w-5 h-5 rounded border-slate-300 text-ocean-600 focus:ring-ocean-500" onchange="toggleCheck(this)">
+                        <span class="ml-3 text-slate-700 group-hover:text-ocean-700 transition-colors">Mietwagen inkl. Via Verde Transponder gebucht</span>
+                    </label>
+                    <label class="flex items-start cursor-pointer check-item group">
+                        <input type="checkbox" class="mt-1 w-5 h-5 rounded border-slate-300 text-ocean-600 focus:ring-ocean-500" onchange="toggleCheck(this)">
+                        <span class="ml-3 text-slate-700 group-hover:text-ocean-700 transition-colors">Reiseroute offline in Navi/Google Maps heruntergeladen</span>
+                    </label>
+                </div>
+
+                <h3 class="font-bold text-lg mb-4 text-slate-700 border-b pb-2">Unterkünfte (Favoriten)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="accom-list">
+                    <!-- Week 1 -->
+                    <label class="flex items-center p-3 border rounded-xl hover:bg-slate-50 cursor-pointer check-item">
+                        <input type="checkbox" class="w-5 h-5 rounded border-slate-300 text-ocean-600 focus:ring-ocean-500" onchange="toggleCheck(this)">
+                        <div class="ml-3">
+                            <div class="font-medium text-slate-800">São Lourenço do Barrocal</div>
+                            <div class="text-xs text-slate-500">Woche 1: Alentejo / Monsaraz</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-3 border rounded-xl hover:bg-slate-50 cursor-pointer check-item">
+                        <input type="checkbox" class="w-5 h-5 rounded border-slate-300 text-ocean-600 focus:ring-ocean-500" onchange="toggleCheck(this)">
+                        <div class="ml-3">
+                            <div class="font-medium text-slate-800">Octant Évora</div>
+                            <div class="text-xs text-slate-500">Woche 1: Évora Umland</div>
+                        </div>
+                    </label>
+                    <!-- Week 2 -->
+                    <label class="flex items-center p-3 border rounded-xl hover:bg-slate-50 cursor-pointer check-item">
+                        <input type="checkbox" class="w-5 h-5 rounded border-slate-300 text-ocean-600 focus:ring-ocean-500" onchange="toggleCheck(this)">
+                        <div class="ml-3">
+                            <div class="font-medium text-slate-800">Herdade da Matinha</div>
+                            <div class="text-xs text-slate-500">Woche 2: Vila Nova de Milfontes</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center p-3 border rounded-xl hover:bg-slate-50 cursor-pointer check-item">
+                        <input type="checkbox" class="w-5 h-5 rounded border-slate-300 text-ocean-600 focus:ring-ocean-500" onchange="toggleCheck(this)">
+                        <div class="ml-3">
+                            <div class="font-medium text-slate-800">Monte do Cardal</div>
+                            <div class="text-xs text-slate-500">Woche 2: Aljezur / Odeceixe</div>
+                        </div>
+                    </label>
+                    <!-- Week 3 -->
+                    <label class="flex items-center p-3 border rounded-xl hover:bg-slate-50 cursor-pointer check-item">
+                        <input type="checkbox" class="w-5 h-5 rounded border-slate-300 text-ocean-600 focus:ring-ocean-500" onchange="toggleCheck(this)">
+                        <div class="ml-3">
+                            <div class="font-medium text-slate-800">Quinta dos Perfumes</div>
+                            <div class="text-xs text-slate-500">Woche 3: Tavira (Ost-Algarve)</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-slate-900 text-slate-400 py-8 text-center mt-auto">
+        <p class="text-sm">Gute Reise nach Portugal! <i class="ph-fill ph-heart text-red-500"></i></p>
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script>
+        // --- 1. Tab Navigation Logic ---
+        let mapInitialized = false;
+        let map;
+
+        function switchTab(tabId) {
+            // Hide all contents
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // Reset all buttons
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('active', 'bg-ocean-50', 'text-ocean-600');
+                el.classList.add('text-slate-500');
+            });
+            
+            // Show target content
+            document.getElementById(tabId).classList.add('active');
+            
+            // Highlight target button
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            activeBtn.classList.remove('text-slate-500');
+            activeBtn.classList.add('active', 'bg-ocean-50', 'text-ocean-600');
+
+            // Handle Map Initialization/Resize issue in hidden tabs
+            if (tabId === 'map-view') {
+                if (!mapInitialized) {
+                    initMap();
+                    mapInitialized = true;
+                } else {
+                    // Timeout ensures the container is visible before invalidating size
+                    setTimeout(() => { map.invalidateSize(); }, 100);
+                }
+            }
+        }
+
+        // --- 2. Accordion Logic ---
+        function toggleAccordion(button) {
+            const content = button.nextElementSibling;
+            const icon = button.querySelector('.ph-caret-down');
+            
+            if (content.style.maxHeight && content.style.maxHeight !== '0px') {
+                content.style.maxHeight = '0px';
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                // Open Accordion
+                content.style.maxHeight = content.scrollHeight + "px";
+                icon.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        // Open the first accordion by default on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const firstAccordionBtn = document.querySelector('#itinerary button');
+            if (firstAccordionBtn) toggleAccordion(firstAccordionBtn);
+            loadChecklist();
+        });
+
+        // --- 3. Interactive Map (Leaflet) ---
+        function initMap() {
+            // Center of southern Portugal
+            map = L.map('map').setView([37.8, -8.3], 7);
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
+            }).addTo(map);
+
+            // Coordinates for the bases
+            const locations = [
+                { name: "Monsaraz (Woche 1)", coords: [38.4439, -7.3809], desc: "Das goldene Hinterland am Alqueva-Stausee" },
+                { name: "Évora (Woche 1)", coords: [38.5714, -7.9135], desc: "Historische Museumsstadt im Alentejo" },
+                { name: "Vila Nova de Milfontes (Woche 2)", coords: [37.7247, -8.7824], desc: "Wilde Westküste & Fischerpfad" },
+                { name: "Aljezur / Odeceixe (Woche 2)", coords: [37.3168, -8.8026], desc: "Klippen und ruhige Strände" },
+                { name: "Tavira (Woche 3)", coords: [37.1260, -7.6499], desc: "Authentische Ost-Algarve & Ria Formosa" }
+            ];
+
+            const waypoints = [];
+
+            // Add markers
+            locations.forEach((loc, index) => {
+                const marker = L.marker(loc.coords).addTo(map);
+                marker.bindPopup(`<b>${index + 1}. ${loc.name}</b><br>${loc.desc}`);
+                waypoints.push(loc.coords);
+            });
+
+            // Draw a rough connecting line (just straight lines for visual flow)
+            const routeLine = L.polyline(waypoints, {
+                color: '#0ea5e9',
+                weight: 3,
+                opacity: 0.7,
+                dashArray: '10, 10'
+            }).addTo(map);
+            
+            // Adjust map view to fit route
+            map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+        }
+
+        // --- 4. Checklist Logic (LocalStorage) ---
+        function toggleCheck(checkbox) {
+            const parent = checkbox.closest('.check-item');
+            if (checkbox.checked) {
+                parent.classList.add('completed');
+            } else {
+                parent.classList.remove('completed');
+            }
+            saveChecklist();
+        }
+
+        function saveChecklist() {
+            const checkboxes = document.querySelectorAll('#checklist input[type="checkbox"]');
+            const state = Array.from(checkboxes).map(cb => cb.checked);
+            localStorage.setItem('ptRoadtripChecklist', JSON.stringify(state));
+        }
+
+        function loadChecklist() {
+            const saved = localStorage.getItem('ptRoadtripChecklist');
+            if (saved) {
+                try {
+                    const state = JSON.parse(saved);
+                    const checkboxes = document.querySelectorAll('#checklist input[type="checkbox"]');
+                    checkboxes.forEach((cb, i) => {
+                        cb.checked = state[i] || false;
+                        if (cb.checked) {
+                            cb.closest('.check-item').classList.add('completed');
+                        }
+                    });
+                } catch(e) { console.error("Could not parse checklist state"); }
+            }
+        }
+
+        function resetChecklist() {
+            // Using a simple custom modal replacement instead of confirm()
+            const message = document.createElement('div');
+            message.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm';
+            message.innerHTML = `
+                <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+                    <h3 class="text-lg font-bold mb-2">Checkliste zurücksetzen?</h3>
+                    <p class="text-slate-600 mb-6">Möchtest du alle Haken entfernen?</p>
+                    <div class="flex justify-end space-x-3">
+                        <button id="btnCancel" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 font-medium">Abbrechen</button>
+                        <button id="btnConfirm" class="px-4 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 font-medium">Zurücksetzen</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(message);
+
+            document.getElementById('btnCancel').onclick = () => document.body.removeChild(message);
+            document.getElementById('btnConfirm').onclick = () => {
+                const checkboxes = document.querySelectorAll('#checklist input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    cb.checked = false;
+                    cb.closest('.check-item').classList.remove('completed');
+                });
+                localStorage.removeItem('ptRoadtripChecklist');
+                document.body.removeChild(message);
+            };
+        }
+    </script>
+</body>
+</html>
